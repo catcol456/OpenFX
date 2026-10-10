@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenFX | Free tools for graphics, streaming, video and art</title>
+    <meta
+      name="description"
+      content="Free, open-source tools for graphics, streaming, video and art. Use them in your browser or download a single HTML file for offline use."
+    />
+    <style>
+      :root {
+        --bg: #0d0221;
+        --glass: rgba(24, 12, 44, 0.46);
+        --fg: #fff;
+        --fgdim: rgba(255, 255, 255, 0.7);
+        --line: rgba(255, 255, 255, 0.2);
+        --field: rgba(255, 255, 255, 0.09);
+        --accent: #ffd400;
+        --accent-fg: #101218;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 20px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          15px/1.55 system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+      }
+      a {
+        color: inherit;
+      }
+
+      /* Slow-moving background colours. */
+      .bg {
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+        z-index: -1;
+      }
+      .bg i {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(70px);
+        opacity: 0.85;
+        animation: drift 38s ease-in-out infinite alternate;
+      }
+      .bg i:nth-child(1) {
+        width: 52vmax;
+        height: 52vmax;
+        left: -14vmax;
+        top: -18vmax;
+        background: #541388;
+      }
+      .bg i:nth-child(2) {
+        width: 42vmax;
+        height: 42vmax;
+        right: -12vmax;
+        top: 8vmax;
+        background: #d90368;
+        animation-duration: 46s;
+        animation-delay: -9s;
+      }
+      .bg i:nth-child(3) {
+        width: 36vmax;
+        height: 36vmax;
+        left: 18vmax;
+        bottom: -16vmax;
+        background: #f1e9da;
+        opacity: 0.5;
+        animation-duration: 52s;
+        animation-delay: -20s;
+      }
+      .bg i:nth-child(4) {
+        width: 24vmax;
+        height: 24vmax;
+        right: 14vmax;
+        bottom: -6vmax;
+        background: #ffd400;
+        opacity: 0.45;
+        animation-duration: 41s;
+        animation-delay: -4s;
+      }
+      @keyframes drift {
+        from {
+          transform: translate(0, 0) scale(1);
+        }
+        to {
+          transform: translate(6vmax, -4vmax) scale(1.12);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .bg i {
+          animation: none;
+        }
+      }
+
+      .stack {
+        width: min(940px, 100%);
+        margin: 0 auto;
+        padding: 28px 16px 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .panel {
+        background: var(--glass);
+        -webkit-backdrop-filter: blur(26px) saturate(1.5);
+        backdrop-filter: blur(26px) saturate(1.5);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        box-shadow:
+          0 20px 60px rgba(0, 0, 0, 0.35),
+          inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        padding: 30px;
+      }
+
+      .label {
+        margin: 0 0 6px;
+        font-size: 12px;
+        font-weight: 650;
+        letter-spacing: 0.9px;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      h2 {
+        margin: 0 0 6px;
+        font-size: 26px;
+        letter-spacing: -0.3px;
+        line-height: 1.2;
+      }
+      .lead {
+        margin: 0 0 20px;
+        color: var(--fgdim);
+        max-width: 60ch;
+      }
+
+      /* Buttons */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--field);
+        color: var(--fg);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 15px;
+        font: inherit;
+        font-weight: 600;
+        font-size: 14px;
+        text-decoration: none;
+        cursor: pointer;
+        transition:
+          border-color 0.15s,
+          transform 0.15s;
+      }
+      .btn:hover,
+      .btn:focus-visible {
+        border-color: var(--accent);
+        outline: none;
+      }
+      .btn.pri {
+        background: var(--accent);
+        color: var(--accent-fg);
+        border-color: transparent;
+      }
+      .btn.pri:hover {
+        transform: translateY(-1px);
+      }
+      .btn svg {
+        width: 15px;
+        height: 15px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      /* Hero */
+      .hero-nav {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 34px;
+      }
+      .logo {
+        font-size: 22px;
+        font-weight: 300;
+        letter-spacing: -0.3px;
+        margin-right: auto;
+        text-decoration: none;
+      }
+      .logo b {
+        font-weight: 750;
+        color: var(--accent);
+      }
+      .hero-nav a.n {
+        color: var(--fgdim);
+        text-decoration: none;
+        font-size: 13.5px;
+        padding: 5px 11px;
+        border-radius: 8px;
+      }
+      .hero-nav a.n:hover {
+        color: var(--fg);
+        background: var(--field);
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 1.05fr 1fr;
+        gap: 34px;
+        align-items: center;
+      }
+      .hero h1 {
+        margin: 0 0 14px;
+        font-size: 38px;
+        line-height: 1.12;
+        letter-spacing: -0.9px;
+        font-weight: 700;
+      }
+      .hero h1 em {
+        font-style: normal;
+        color: var(--accent);
+      }
+      .hero p.sub {
+        margin: 0 0 22px;
+        color: var(--fgdim);
+        font-size: 16px;
+      }
+      .cta {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 22px;
+      }
+      .pills {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+      }
+      .pills li {
+        border: 1px solid var(--line);
+        background: var(--field);
+        border-radius: 99px;
+        padding: 3px 12px;
+        font-size: 12.5px;
+        color: var(--fgdim);
+      }
+
+      .stage {
+        border-radius: 18px;
+        padding: 26px 22px;
+        background: #d90368;
+        border: 1px solid var(--line);
+      }
+      .mock {
+        background: rgba(20, 8, 40, 0.5);
+        -webkit-backdrop-filter: blur(14px);
+        backdrop-filter: blur(14px);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 14px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+      }
+      .sk {
+        display: block;
+        height: 6px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.3);
+      }
+      .mock-top {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 11px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+      }
+      .mock-top i {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.35);
+      }
+      .mock-top .sk {
+        width: 70px;
+        margin-left: 8px;
+        height: 7px;
+      }
+      .mock-tabs {
+        display: flex;
+        gap: 10px;
+        padding: 0 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+      }
+      .mock-tabs b {
+        display: block;
+        width: 44px;
+        height: 30px;
+        position: relative;
+        border-bottom: 2px solid transparent;
+      }
+      .mock-tabs b::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        height: 6px;
+        margin-top: -3px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.28);
+      }
+      .mock-tabs b.on {
+        border-color: var(--accent);
+      }
+      .mock-tabs b.on::after {
+        background: rgba(255, 255, 255, 0.7);
+      }
+      .mock-rows {
+        padding: 14px 14px 4px;
+      }
+      .mock-rows div {
+        display: grid;
+        grid-template-columns: 62px 1fr;
+        gap: 10px;
+        align-items: center;
+        margin: 0 0 14px;
+      }
+      .fake {
+        height: 4px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.22);
+        position: relative;
+      }
+      .fake::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: var(--v);
+        background: var(--accent);
+        border-radius: 4px;
+      }
+      .fake::after {
+        content: "";
+        position: absolute;
+        left: var(--v);
+        top: 50%;
+        width: 11px;
+        height: 11px;
+        margin: -5.5px 0 0 -5.5px;
+        border-radius: 50%;
+        background: var(--accent);
+      }
+      .mock-btns {
+        display: flex;
+        gap: 8px;
+        padding: 4px 14px 14px;
+      }
+      .mock-btns i {
+        height: 22px;
+        width: 54px;
+        border-radius: 7px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .mock-btns i:first-child {
+        width: 70px;
+        background: var(--accent);
+        border-color: transparent;
+      }
+
+      /* Tool list */
+      .tools-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-bottom: 6px;
+      }
+      .tools-head .lead {
+        margin-bottom: 0;
+      }
+      #filters {
+        display: flex;
+        gap: 7px;
+        flex-wrap: wrap;
+      }
+      .chip {
+        background: var(--field);
+        color: var(--fgdim);
+        border: 1px solid var(--line);
+        border-radius: 99px;
+        padding: 4px 13px;
+        font: inherit;
+        font-size: 12.5px;
+        cursor: pointer;
+        text-transform: capitalize;
+        transition:
+          border-color 0.15s,
+          color 0.15s;
+      }
+      .chip:hover {
+        color: var(--fg);
+        border-color: var(--accent);
+      }
+      .chip.on {
+        background: var(--accent);
+        color: var(--accent-fg);
+        border-color: transparent;
+        font-weight: 650;
+      }
+
+      #tools {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(270px, 100%), 1fr));
+        gap: 16px;
+        margin-top: 20px;
+      }
+      .card {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        background: var(--field);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 14px 16px 16px;
+        aspect-ratio: 1;
+        min-height: 0;
+        overflow: auto;
+      }
+      .strip {
+        height: 38px;
+        border-radius: 9px;
+        border: 1px solid var(--line);
+      }
+      .card h3 {
+        margin: 4px 0 0;
+        font-size: 17px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .badge {
+        font-size: 10.5px;
+        font-weight: 650;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 1px 6px;
+        color: var(--fgdim);
+      }
+      .card p {
+        margin: 0;
+        color: var(--fgdim);
+        font-size: 13.5px;
+        flex: 1;
+      }
+      .meta {
+        font-size: 12px;
+        color: var(--fgdim);
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 4px;
+      }
+      .empty {
+        grid-column: 1/-1;
+        color: var(--fgdim);
+        text-align: center;
+        padding: 16px 0;
+      }
+
+      /* About */
+      .feats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+        gap: 14px;
+      }
+      .feat {
+        background: var(--field);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 15px 16px;
+      }
+      .feat h3 {
+        margin: 0 0 4px;
+        font-size: 15px;
+      }
+      .feat p {
+        margin: 0;
+        color: var(--fgdim);
+        font-size: 13.5px;
+      }
+
+      /* Offline instructions */
+      ol.steps {
+        list-style: none;
+        margin: 0 0 18px;
+        padding: 0;
+        counter-reset: s;
+        display: grid;
+        gap: 12px;
+      }
+      ol.steps li {
+        counter-increment: s;
+        display: grid;
+        grid-template-columns: 34px 1fr;
+        gap: 14px;
+        align-items: start;
+      }
+      ol.steps li::before {
+        content: counter(s);
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        background: var(--accent);
+        color: var(--accent-fg);
+      }
+      ol.steps strong {
+        display: block;
+        margin-bottom: 1px;
+      }
+      ol.steps span {
+        color: var(--fgdim);
+        font-size: 14px;
+      }
+      /* Footer */
+      .foot {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 18px 26px;
+        font-size: 13px;
+        color: var(--fgdim);
+      }
+      .foot .links {
+        display: flex;
+        gap: 16px;
+      }
+      .foot a {
+        text-decoration: none;
+      }
+      .foot a:hover {
+        color: var(--fg);
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      @media (max-width: 760px) {
+        .hero-grid {
+          grid-template-columns: 1fr;
+        }
+        .hero h1 {
+          font-size: 32px;
+        }
+        .panel {
+          padding: 22px 18px;
+          border-radius: 18px;
+        }
+        h2 {
+          font-size: 22px;
+        }
+        .hero-nav {
+          margin-bottom: 24px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+
+    <div class="stack">
+      <!-- Hero -->
+      <header class="panel hero" id="top">
+        <nav class="hero-nav">
+          <a class="logo" href="#top">Open<b>FX</b></a>
+          <a class="n" href="#tools-section">Tools</a>
+          <a class="n" href="#about">About</a>
+          <a class="n" href="#run-locally">Offline use</a>
+        </nav>
+
+        <div class="hero-grid">
+          <div>
+            <h1>Free tools for <em>graphics, streaming,</em> video and art.</h1>
+            <p class="sub">
+              Open a tool in your browser, or download its HTML file to use
+              offline. No account or installation needed.
+            </p>
+            <div class="cta">
+              <a class="btn pri" href="#tools-section">Browse tools</a>
+              <a class="btn" href="#run-locally">Use offline</a>
+              <a
+                class="btn"
+                data-repo
+                href="#"
+                hidden
+                target="_blank"
+                rel="noopener"
+                >View source</a
+              >
+            </div>
+            <ul class="pills">
+              <li>Open source</li>
+              <li>No account</li>
+              <li>Single-file tools</li>
+            </ul>
+          </div>
+
+          <div class="stage" aria-hidden="true">
+            <div class="mock">
+              <div class="mock-top">
+                <i></i><i></i><i></i><span class="sk"></span>
+              </div>
+              <div class="mock-tabs">
+                <b class="on"></b><b></b><b></b><b></b>
+              </div>
+              <div class="mock-rows">
+                <div>
+                  <span class="sk" style="width: 80%"></span
+                  ><span class="fake" style="--v: 38%"></span>
+                </div>
+                <div>
+                  <span class="sk" style="width: 65%"></span
+                  ><span class="fake" style="--v: 55%"></span>
+                </div>
+                <div>
+                  <span class="sk" style="width: 90%"></span
+                  ><span class="fake" style="--v: 30%"></span>
+                </div>
+                <div>
+                  <span class="sk" style="width: 70%"></span
+                  ><span class="fake" style="--v: 68%"></span>
+                </div>
+              </div>
+              <div class="mock-btns"><i></i><i></i></div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Tools -->
+      <section class="panel" id="tools-section">
+        <div class="tools-head">
+          <div>
+            <p class="label">Tools</p>
+            <h2>Available tools</h2>
+            <p class="lead">
+              Open a tool here, or download its HTML file to use offline.
+            </p>
+          </div>
+          <div id="filters"></div>
+        </div>
+        <div id="tools">
+          <noscript
+            ><p class="empty">
+              Enable JavaScript to see the tool list.
+            </p></noscript
+          >
+        </div>
+      </section>
+
+      <!-- About -->
+      <section class="panel" id="about">
+        <p class="label">About</p>
+        <h2>A small collection of browser tools</h2>
+        <p class="lead">
+          Use each tool in your browser, inspect its source, or keep a copy on
+          your computer.
+        </p>
+        <div class="feats">
+          <div class="feat">
+            <h3>Free to use</h3>
+            <p>No paywall, trial period or watermark.</p>
+          </div>
+          <div class="feat">
+            <h3>Open source</h3>
+            <p>Each tool is a standalone HTML file with its source included.</p>
+          </div>
+          <div class="feat">
+            <h3>Works offline</h3>
+            <p>Download a tool and open it directly in your browser.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Offline instructions -->
+      <section class="panel" id="run-locally">
+        <p class="label">Offline</p>
+        <h2>Use a tool offline</h2>
+        <p class="lead">
+          Download the HTML file and open it in a browser. No installation is
+          needed.
+        </p>
+        <ol class="steps">
+          <li>
+            <div>
+              <strong>Download</strong
+              ><span
+                >Choose <b>Download</b> on a tool card to save its HTML
+                file.</span
+              >
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Open</strong
+              ><span
+                >Double-click the file. If needed, use <b>Open with</b> and
+                choose your browser.</span
+              >
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Use it offline</strong
+              ><span
+                >Once downloaded, the tool runs without an internet
+                connection.</span
+              >
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <!-- Footer -->
+      <footer class="panel foot">
+        <span
+          >Open<b style="color: var(--accent)">FX</b> · free and open
+          source</span
+        >
+        <span class="links">
+          <a href="#tools-section">Tools</a>
+          <a href="#run-locally">Offline use</a>
+          <a data-repo href="#" hidden target="_blank" rel="noopener">Source</a>
+          <a href="#top">Back to top ↑</a>
+        </span>
+      </footer>
+    </div>
+
+    <script>
+      // Add the repository URL to show source links.
+      const SITE = {
+        repo: "",
+      };
+
+      // Add one entry here for each tool.
+      const TOOLS = [
+        {
+          name: "Noise Lab",
+          file: "noise-lab-v1.html",
+          blurb:
+            "Make animated noise patterns. Adjust the pattern, colours and motion, then share a setup or export it.",
+          tags: ["graphics", "streaming", "art"],
+          color: "#d90368",
+          status: "v1",
+        },
+      ];
+
+      const toolsEl = document.getElementById("tools");
+      const filtersEl = document.getElementById("filters");
+      let activeTag = "all";
+
+      function make(tag, cls, text) {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        if (text != null) e.textContent = text;
+        return e;
+      }
+
+      const icons = {
+        open: '<svg viewBox="0 0 24 24"><path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
+        down: '<svg viewBox="0 0 24 24"><path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M5 19h14"/></svg>',
+      };
+
+      function linkBtn(label, href, cls, icon, download) {
+        const a = make("a", "btn " + cls);
+        a.href = href;
+        if (download) a.setAttribute("download", href.split("/").pop());
+        a.innerHTML = icon;
+        a.append(label);
+        return a;
+      }
+
+      function card(t) {
+        const c = make("article", "card");
+
+        const strip = make("div", "strip");
+        strip.style.background = t.color || "var(--field)";
+
+        const h = make("h3", null, t.name);
+        if (t.status) h.append(make("span", "badge", t.status));
+
+        const meta = make("div", "meta");
+        meta.append(make("span", null, (t.tags || []).join(" · ")));
+
+        const actions = make("div", "actions");
+        actions.append(
+          linkBtn("Open", t.file, "pri", icons.open, false),
+          linkBtn("Download", t.file, "", icons.down, true),
+        );
+
+        c.append(strip, h, make("p", null, t.blurb), meta, actions);
+        return c;
+      }
+
+      function drawFilters() {
+        const tags = [...new Set(TOOLS.flatMap((t) => t.tags || []))].sort();
+        filtersEl.innerHTML = "";
+        if (TOOLS.length < 2 || tags.length < 2) return;
+
+        ["all", ...tags].forEach((tag) => {
+          const b = make(
+            "button",
+            "chip" + (tag === activeTag ? " on" : ""),
+            tag,
+          );
+          b.type = "button";
+          b.onclick = () => {
+            activeTag = tag;
+            drawFilters();
+            drawTools();
+          };
+          filtersEl.append(b);
+        });
+      }
+
+      function drawTools() {
+        toolsEl.innerHTML = "";
+        const shown = TOOLS.filter(
+          (t) => activeTag === "all" || (t.tags || []).includes(activeTag),
+        );
+        shown.forEach((t) => toolsEl.append(card(t)));
+
+        if (!shown.length) {
+          toolsEl.append(make("p", "empty", "Nothing here yet."));
+        }
+      }
+
+      if (SITE.repo) {
+        document.querySelectorAll("[data-repo]").forEach((a) => {
+          a.href = SITE.repo;
+          a.hidden = false;
+        });
+      }
+
+      drawFilters();
+      drawTools();
+    </script>
+  </body>
+</html>

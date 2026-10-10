@@ -1,0 +1,1619 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Noise Lab</title>
+    <style>
+      :root {
+        /* Updated from the selected palette. */
+        --glass: rgba(20, 20, 30, 0.42);
+        --fg: rgb(255, 255, 255);
+        --fgdim: rgba(255, 255, 255, 0.68);
+        --line: rgba(255, 255, 255, 0.2);
+        --field: rgba(255, 255, 255, 0.1);
+        --accent: rgb(124, 156, 255);
+        --accent-fg: #111;
+        --opt: rgb(30, 30, 40);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+        color: var(--fg);
+        font:
+          13px/1.35 system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+      }
+      canvas {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      #wrap {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        pointer-events: none;
+        transition:
+          opacity 0.25s,
+          transform 0.25s;
+      }
+      #panel {
+        pointer-events: auto;
+        width: min(780px, 94vw);
+        height: min(580px, 88vh);
+        display: flex;
+        flex-direction: column;
+        background: var(--glass);
+        -webkit-backdrop-filter: blur(26px) saturate(1.5);
+        backdrop-filter: blur(26px) saturate(1.5);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        box-shadow:
+          0 20px 60px rgba(0, 0, 0, 0.35),
+          inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        transition:
+          background 0.2s,
+          border-color 0.2s;
+      }
+      body.hidepanel #wrap {
+        opacity: 0;
+        transform: scale(0.97);
+        pointer-events: none;
+      }
+      body.hidepanel #panel {
+        pointer-events: none;
+      }
+      #top {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 18px 8px;
+      }
+      #top h1 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 650;
+        letter-spacing: 0.3px;
+        flex: 1;
+      }
+      .ib {
+        background: var(--field);
+        color: var(--fg);
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        padding: 5px 10px;
+        font: inherit;
+        cursor: pointer;
+        transition:
+          border-color 0.15s,
+          background 0.15s;
+      }
+      .ib:hover {
+        border-color: var(--accent);
+      }
+      #tabs {
+        display: flex;
+        gap: 4px;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--line);
+        overflow-x: auto;
+      }
+      .tab {
+        background: none;
+        border: 0;
+        color: var(--fgdim);
+        font: inherit;
+        font-weight: 600;
+        padding: 9px 14px;
+        cursor: pointer;
+        border-radius: 9px 9px 0 0;
+        border-bottom: 2px solid transparent;
+        white-space: nowrap;
+      }
+      .tab:hover {
+        color: var(--fg);
+        background: var(--field);
+      }
+      .tab.active {
+        color: var(--fg);
+        border-bottom-color: var(--accent);
+        background: var(--field);
+      }
+      #content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 14px 20px 8px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--line) transparent;
+      }
+      .page {
+        display: none;
+      }
+      .page.active {
+        display: block;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 0 30px;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 96px 1fr 56px;
+        gap: 10px;
+        align-items: center;
+        margin: 8px 0;
+      }
+      .row label {
+        color: var(--fgdim);
+      }
+      .row.sel,
+      .row.chk {
+        grid-template-columns: 96px 1fr;
+      }
+      .row.chk input {
+        justify-self: start;
+      }
+      input[type="range"] {
+        width: 100%;
+        accent-color: var(--accent);
+        margin: 0;
+      }
+      input[type="checkbox"] {
+        accent-color: var(--accent);
+        width: 16px;
+        height: 16px;
+      }
+      input[type="text"],
+      input[type="number"],
+      select,
+      textarea {
+        background: var(--field);
+        color: var(--fg);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 4px 6px;
+        font: inherit;
+        width: 100%;
+      }
+      input[type="number"] {
+        -moz-appearance: textfield;
+        -webkit-appearance: textfield;
+        appearance: textfield;
+        padding: 4px;
+      }
+      input[type="number"]::-webkit-inner-spin-button {
+        display: none;
+      }
+      select option {
+        background: var(--opt);
+        color: var(--fg);
+      }
+      textarea {
+        height: 84px;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 11px;
+        resize: vertical;
+      }
+      h3 {
+        margin: 16px 0 4px;
+        font-size: 12px;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        color: var(--fgdim);
+        font-weight: 650;
+      }
+      h3:first-child {
+        margin-top: 2px;
+      }
+      .note {
+        color: var(--fgdim);
+        font-size: 11.5px;
+        margin: 8px 0 0;
+      }
+      .btns {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 10px 0;
+      }
+      button.b {
+        background: var(--field);
+        color: var(--fg);
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        padding: 7px 12px;
+        font: inherit;
+        cursor: pointer;
+        transition: border-color 0.15s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      button.b:hover {
+        border-color: var(--accent);
+      }
+      button.b.pri {
+        background: var(--accent);
+        color: var(--accent-fg);
+        border-color: transparent;
+        font-weight: 650;
+      }
+      .b .btn-icon {
+        width: 14px;
+        height: 14px;
+        display: block;
+        flex: 0 0 auto;
+        color: inherit;
+        transform: translateY(1px);
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .b .btn-icon * {
+        stroke: currentColor;
+        fill: none;
+        stroke-width: inherit;
+        stroke-linecap: inherit;
+        stroke-linejoin: inherit;
+      }
+      .b .btn-icon .solid {
+        fill: currentColor;
+        stroke: none;
+      }
+      .cols {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 8px;
+        margin: 10px 0;
+      }
+      .cols input {
+        width: 100%;
+        height: 38px;
+        padding: 0;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: none;
+        cursor: pointer;
+        transition: opacity 0.15s;
+      }
+      .cols input.off {
+        opacity: 0.2;
+        pointer-events: none;
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 6px 0;
+      }
+      .chip {
+        width: 76px;
+        height: 26px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        cursor: pointer;
+        padding: 0;
+      }
+      .chip:hover {
+        border-color: var(--accent);
+        transform: translateY(-1px);
+      }
+      #foot {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 8px 20px 12px;
+        color: var(--fgdim);
+        font-size: 11px;
+        border-top: 1px solid var(--line);
+      }
+      #peek {
+        position: fixed;
+        right: 14px;
+        bottom: 14px;
+        display: none;
+        z-index: 5;
+        opacity: 0.55;
+      }
+      #peek:hover {
+        opacity: 1;
+      }
+      body.hidepanel #peek {
+        display: block;
+      }
+      #toast {
+        position: fixed;
+        left: 50%;
+        top: 16px;
+        transform: translateX(-50%);
+        background: var(--accent);
+        color: var(--accent-fg);
+        padding: 7px 14px;
+        border-radius: 9px;
+        font-weight: 650;
+        opacity: 0;
+        transition: opacity 0.2s;
+        pointer-events: none;
+        z-index: 9;
+      }
+      #toast.show {
+        opacity: 1;
+      }
+      #err {
+        position: fixed;
+        inset: 0;
+        display: none;
+        padding: 20px;
+        color: #ff8d8d;
+        white-space: pre-wrap;
+        font-family: ui-monospace, monospace;
+        background: #000c;
+        overflow: auto;
+        z-index: 20;
+      }
+      /* Clean mode (?clean) shows only the noise. */
+      body.clean {
+        cursor: none;
+      }
+      body.clean #wrap,
+      body.clean #peek,
+      body.clean #toast {
+        display: none !important;
+      }
+      @media (max-width: 560px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        .row {
+          grid-template-columns: 84px 1fr 50px;
+        }
+        .cols {
+          grid-template-columns: repeat(4, 1fr);
+        }
+        #panel {
+          height: 86vh;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="cv"></canvas>
+    <div id="wrap">
+      <div id="panel">
+        <div id="top">
+          <h1>Noise Lab</h1>
+          <button class="ib" id="hideB" title="Hide panel (H)">
+            Hide panel
+          </button>
+        </div>
+        <div id="tabs"></div>
+        <div id="content"></div>
+        <div id="foot">
+          <span id="stat"></span><span>H hides panel · Space pauses</span>
+        </div>
+      </div>
+    </div>
+    <button class="ib" id="peek" title="Show panel (H)">Show panel</button>
+    <div id="toast"></div>
+    <div id="err"></div>
+    <script id="frag" type="x-shader/x-fragment">
+      precision highp float;
+      uniform vec2  uRes;
+      uniform vec3  uOff;
+      uniform float uType, uFractal, uOct, uLac, uGain, uJitter, uScale, uAngle, uSx, uSy;
+      uniform float uSeed, uWarp, uContrast, uBright, uInvert, uPix, uN, uSharp;
+      uniform vec3  uCols[8];
+      vec3 hash33(vec3 p){
+      p = fract(p*vec3(.1031,.1030,.0973));
+      p += dot(p, p.yxz+33.33);
+      return fract((p.xxy+p.yxx)*p.zyx);
+      }
+      float hash13(vec3 p){
+      p = fract(p*.1031);
+      p += dot(p, p.zyx+31.32);
+      return fract((p.x+p.y)*p.z);
+      }
+      vec3 fade(vec3 f){ return f*f*f*(f*(f*6.-15.)+10.); }
+      // 0: value noise (-1..1)
+      float vnoise(vec3 p){
+      vec3 i=floor(p), f=fract(p), u=fade(f);
+      float a=hash13(i),               b=hash13(i+vec3(1,0,0));
+      float c=hash13(i+vec3(0,1,0)),   d=hash13(i+vec3(1,1,0));
+      float e=hash13(i+vec3(0,0,1)),   g=hash13(i+vec3(1,0,1));
+      float h=hash13(i+vec3(0,1,1)),   k=hash13(i+vec3(1,1,1));
+      float r=mix(mix(mix(a,b,u.x),mix(c,d,u.x),u.y), mix(mix(e,g,u.x),mix(h,k,u.x),u.y), u.z);
+      return r*2.-1.;
+      }
+      // 1: gradient (Perlin) noise
+      float gn(vec3 i, vec3 f){ return dot(hash33(i)*2.-1., f); }
+      float pnoise(vec3 p){
+      vec3 i=floor(p), f=fract(p), u=fade(f);
+      float n000=gn(i,f),                         n100=gn(i+vec3(1,0,0),f-vec3(1,0,0));
+      float n010=gn(i+vec3(0,1,0),f-vec3(0,1,0)), n110=gn(i+vec3(1,1,0),f-vec3(1,1,0));
+      float n001=gn(i+vec3(0,0,1),f-vec3(0,0,1)), n101=gn(i+vec3(1,0,1),f-vec3(1,0,1));
+      float n011=gn(i+vec3(0,1,1),f-vec3(0,1,1)), n111=gn(i+vec3(1,1,1),f-vec3(1,1,1));
+      float r=mix(mix(mix(n000,n100,u.x),mix(n010,n110,u.x),u.y),
+      mix(mix(n001,n101,u.x),mix(n011,n111,u.x),u.y), u.z);
+      return clamp(r*1.35,-1.,1.);
+      }
+      // 2: simplex noise (Ashima / Ian McEwan)
+      vec3 mod289(vec3 x){return x-floor(x*(1./289.))*289.;}
+      vec4 mod289(vec4 x){return x-floor(x*(1./289.))*289.;}
+      vec4 permute(vec4 x){return mod289(((x*34.)+1.)*x);}
+      vec4 tis(vec4 r){return 1.79284291400159-0.85373472095314*r;}
+      float snoise(vec3 v){
+      const vec2 C=vec2(1./6.,1./3.); const vec4 D=vec4(0.,.5,1.,2.);
+      vec3 i=floor(v+dot(v,C.yyy)); vec3 x0=v-i+dot(i,C.xxx);
+      vec3 g=step(x0.yzx,x0.xyz); vec3 l=1.-g;
+      vec3 i1=min(g.xyz,l.zxy); vec3 i2=max(g.xyz,l.zxy);
+      vec3 x1=x0-i1+C.xxx; vec3 x2=x0-i2+C.yyy; vec3 x3=x0-D.yyy;
+      i=mod289(i);
+      vec4 p=permute(permute(permute(i.z+vec4(0.,i1.z,i2.z,1.))+i.y+vec4(0.,i1.y,i2.y,1.))+i.x+vec4(0.,i1.x,i2.x,1.));
+      float n_=0.142857142857; vec3 ns=n_*D.wyz-D.xzx;
+      vec4 j=p-49.*floor(p*ns.z*ns.z);
+      vec4 x_=floor(j*ns.z); vec4 y_=floor(j-7.*x_);
+      vec4 x=x_*ns.x+ns.yyyy; vec4 y=y_*ns.x+ns.yyyy; vec4 h=1.-abs(x)-abs(y);
+      vec4 b0=vec4(x.xy,y.xy); vec4 b1=vec4(x.zw,y.zw);
+      vec4 s0=floor(b0)*2.+1.; vec4 s1=floor(b1)*2.+1.; vec4 sh=-step(h,vec4(0.));
+      vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy; vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
+      vec3 p0=vec3(a0.xy,h.x); vec3 p1=vec3(a0.zw,h.y); vec3 p2=vec3(a1.xy,h.z); vec3 p3=vec3(a1.zw,h.w);
+      vec4 nm=tis(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+      p0*=nm.x; p1*=nm.y; p2*=nm.z; p3*=nm.w;
+      vec4 m=max(0.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.); m=m*m;
+      return 42.*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+      }
+      // 3..6: worley / cellular. returns (F1, F2, cell id)
+      vec3 worley(vec3 p){
+      vec3 i=floor(p), f=fract(p);
+      float d1=8., d2=8., id=0.;
+      for(int x=-1;x<=1;x++) for(int y=-1;y<=1;y++) for(int z=-1;z<=1;z++){
+      vec3 g=vec3(float(x),float(y),float(z));
+      vec3 o=mix(vec3(.5), hash33(i+g), uJitter);
+      vec3 r=g+o-f; float d=dot(r,r);
+      if(d<d1){ d2=d1; d1=d; id=hash13(i+g+7.7); }
+      else if(d<d2){ d2=d; }
+      }
+      return vec3(sqrt(d1),sqrt(d2),id);
+      }
+      float base(vec3 p){
+      if(uType<.5)  return vnoise(p);
+      if(uType<1.5) return pnoise(p);
+      if(uType<2.5) return snoise(p);
+      if(uType<6.5){
+      vec3 w=worley(p);
+      float v;
+      if(uType<3.5)      v=w.x*1.15;          // F1
+      else if(uType<4.5) v=w.y*.8;            // F2
+      else if(uType<5.5) v=(w.y-w.x)*1.6;     // F2-F1 (cell edges)
+      else               v=w.z;               // flat cell value
+      return clamp(v,0.,1.)*2.-1.;
+      }
+      return hash13(floor(p))*2.-1.;            // 7: white noise (blocky)
+      }
+      float fractal(vec3 p){
+      float sum=0., amp=1., norm=0., fr=1.;
+      for(int i=0;i<10;i++){
+      if(float(i)>=uOct) break;
+      float s=base(p*fr+float(i)*17.31);
+      if(uFractal>.5 && uFractal<1.5) s=abs(s)*2.-1.;            // billow
+      else if(uFractal>1.5)            s=(1.-abs(s))*2.-1.;       // ridged
+      sum+=s*amp; norm+=amp; amp*=uGain; fr*=uLac;
+      }
+      return sum/norm*.5+.5;
+      }
+      void main(){
+      vec2 fc=gl_FragCoord.xy;
+      if(uPix>1.) fc=(floor(fc/uPix)+.5)*uPix;
+      vec2 uv=(fc-.5*uRes)/uRes.y;
+      float ca=cos(uAngle), sa=sin(uAngle);
+      uv=mat2(ca,-sa,sa,ca)*uv;
+      uv*=vec2(uSx,uSy);
+      vec3 p=vec3(uv*uScale,0.)+uOff+hash33(vec3(uSeed,uSeed*.37,1.3))*64.;
+      if(uWarp>0.){
+      vec3 q=vec3(base(p+vec3(5.2,1.3,8.1)),base(p+vec3(1.7,9.2,3.4)),base(p+vec3(8.3,2.8,4.6)));
+      p+=q*uWarp;
+      }
+      float v=fractal(p);
+      v=(v-.5)*uContrast+.5+uBright;
+      if(uInvert>.5) v=1.-v;
+      v=clamp(v,0.,1.);
+      // colour mapping: N colours, sharpness = hard bands vs smooth gradient
+      float pos=clamp(v*uN-.5,0.,uN-1.);
+      float i=floor(min(pos,uN-1.0001));
+      float fr=pos-i;
+      float soft=1.-uSharp;
+      float t = soft<.001 ? step(.5,fr)
+      : mix(smoothstep(.5-.5*soft,.5+.5*soft,fr), fr, smoothstep(.85,1.,soft));
+      vec3 c0=uCols[0], c1=uCols[0];
+      for(int k=0;k<8;k++){
+      if(float(k)==i)    c0=uCols[k];
+      if(float(k)==i+1.) c1=uCols[k];
+      }
+      gl_FragColor=vec4(mix(c0,c1,t),1.);
+      }
+    </script>
+    <script>
+      (() => {
+        "use strict";
+        /* Parameters */
+        const TYPES = [
+          "Value",
+          "Perlin (gradient)",
+          "Simplex",
+          "Worley F1 (cells)",
+          "Worley F2",
+          "Worley F2-F1 (edges)",
+          "Voronoi cell colour",
+          "White (blocky)",
+        ];
+        const FRACTAL = ["fBm (smooth)", "Billow (puffy)", "Ridged (veiny)"];
+        const PALETTES = [
+          ["#000000", "#444444", "#bbbbbb", "#ffffff"],
+          ["#0d0221", "#541388", "#d90368", "#f1e9da", "#ffd400"],
+          ["#03045e", "#0077b6", "#00b4d8", "#90e0ef", "#caf0f8"],
+          ["#10002b", "#7b0828", "#ff4800", "#ffb700", "#fff3b0"],
+          ["#0b2111", "#1f5a2c", "#5fa141", "#c4e17f", "#f6ffd9"],
+          ["#ff006e", "#8338ec", "#3a86ff", "#06d6a0", "#ffbe0b"],
+          ["#05080f", "#0d1b3d", "#1e4fa8", "#6fa3ff", "#eaf2ff"],
+          ["#000000", "#ffffff"],
+        ];
+        const DEFAULTS = {
+          type: 1,
+          fractal: 0,
+          scale: 4,
+          octaves: 4,
+          lacunarity: 2,
+          gain: 0.5,
+          jitter: 1,
+          seed: 1,
+          warp: 0,
+          stretchX: 1,
+          stretchY: 1,
+          rotation: 0,
+          contrast: 1.2,
+          brightness: 0,
+          invert: false,
+          pixel: 1,
+          colourCount: 5,
+          sharpness: 0.15,
+          colors: [
+            "#0d0221",
+            "#541388",
+            "#d90368",
+            "#f1e9da",
+            "#ffd400",
+            "#ffffff",
+            "#00b4d8",
+            "#06d6a0",
+          ],
+          speed: 1,
+          speedX: 0,
+          speedY: 0,
+          speedZ: 0.15,
+          resolution: 1,
+          offset: [0, 0, 0],
+        };
+        function merge(dst, src) {
+          if (!src || typeof src !== "object") return;
+          for (const k of Object.keys(DEFAULTS)) {
+            if (!(k in src)) continue;
+            const d = DEFAULTS[k],
+              v = src[k];
+            if (k === "colors") {
+              if (Array.isArray(v))
+                dst.colors = DEFAULTS.colors.map((c, i) =>
+                  /^#[0-9a-f]{6}$/i.test(v[i] || "")
+                    ? v[i]
+                    : dst.colors[i] || c,
+                );
+            } else if (k === "offset") {
+              if (
+                Array.isArray(v) &&
+                v.length === 3 &&
+                v.every(Number.isFinite)
+              )
+                dst.offset = v.slice();
+            } else if (typeof d === "number") {
+              if (Number.isFinite(+v)) dst[k] = +v;
+            } else if (typeof d === "boolean") {
+              dst[k] = !!v;
+            }
+          }
+        }
+        /* Saved settings and URL state */
+        const STORE = "noise-lab-v1";
+        const urlArgs = () =>
+          new URLSearchParams(
+            location.search + "&" + location.hash.replace(/^#/, ""),
+          );
+        const CLEAN = urlArgs().has("clean");
+        if (CLEAN) document.body.classList.add("clean");
+        const enc = (o) =>
+          btoa(unescape(encodeURIComponent(JSON.stringify(o))))
+            .replace(/\+/g, "-")
+            .replace(/\//g, "_")
+            .replace(/=+$/, "");
+        const dec = (s) =>
+          JSON.parse(
+            decodeURIComponent(
+              escape(atob(s.replace(/-/g, "+").replace(/_/g, "/"))),
+            ),
+          );
+        const obsUrl = (q) =>
+          location.href.split(/[?#]/)[0] + "?clean#s=" + enc(q);
+        let P = JSON.parse(JSON.stringify(DEFAULTS));
+        (function loadInitial() {
+          const s = urlArgs().get("s");
+          if (s) {
+            try {
+              merge(P, dec(s));
+              return;
+            } catch (e) {}
+          }
+          if (urlArgs().has("defaults")) return;
+          try {
+            const ls = localStorage.getItem(STORE);
+            if (ls) merge(P, JSON.parse(ls));
+          } catch (e) {}
+        })();
+        let paused = false;
+        let includeGLSL = true;
+        function save() {
+          if (CLEAN) return;
+          try {
+            localStorage.setItem(STORE, JSON.stringify(P));
+          } catch (e) {}
+        }
+        /* WebGL setup */
+        const cv = document.getElementById("cv");
+        const gl = cv.getContext("webgl", {
+          preserveDrawingBuffer: true,
+          antialias: false,
+        });
+        const errBox = document.getElementById("err");
+        function showErr(m) {
+          errBox.style.display = "block";
+          errBox.textContent = m;
+        }
+        if (!gl) {
+          showErr("WebGL isn't available in this browser.");
+          return;
+        }
+        const fragSrc = document.getElementById("frag").textContent;
+        function sh(type, src) {
+          const s = gl.createShader(type);
+          gl.shaderSource(s, src);
+          gl.compileShader(s);
+          if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+            throw new Error(gl.getShaderInfoLog(s));
+          return s;
+        }
+        let prog;
+        try {
+          prog = gl.createProgram();
+          gl.attachShader(
+            prog,
+            sh(
+              gl.VERTEX_SHADER,
+              "attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}",
+            ),
+          );
+          gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fragSrc));
+          gl.linkProgram(prog);
+          if (!gl.getProgramParameter(prog, gl.LINK_STATUS))
+            throw new Error(gl.getProgramInfoLog(prog));
+        } catch (e) {
+          showErr("Shader error:\n" + e.message);
+          return;
+        }
+        gl.useProgram(prog);
+        const buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(
+          gl.ARRAY_BUFFER,
+          new Float32Array([-1, -1, 3, -1, -1, 3]),
+          gl.STATIC_DRAW,
+        );
+        const loc = gl.getAttribLocation(prog, "a");
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+        const U = {};
+        [
+          "uRes",
+          "uOff",
+          "uType",
+          "uFractal",
+          "uOct",
+          "uLac",
+          "uGain",
+          "uJitter",
+          "uScale",
+          "uAngle",
+          "uSx",
+          "uSy",
+          "uSeed",
+          "uWarp",
+          "uContrast",
+          "uBright",
+          "uInvert",
+          "uPix",
+          "uN",
+          "uSharp",
+          "uCols",
+        ].forEach((n) => (U[n] = gl.getUniformLocation(prog, n)));
+        const hex2rgb = (h) =>
+          [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+        function resize() {
+          const dpr = window.devicePixelRatio || 1;
+          const w = Math.max(
+            1,
+            Math.round(cv.clientWidth * dpr * P.resolution),
+          );
+          const h = Math.max(
+            1,
+            Math.round(cv.clientHeight * dpr * P.resolution),
+          );
+          if (cv.width !== w || cv.height !== h) {
+            cv.width = w;
+            cv.height = h;
+          }
+        }
+        function draw() {
+          resize();
+          gl.viewport(0, 0, cv.width, cv.height);
+          gl.uniform2f(U.uRes, cv.width, cv.height);
+          gl.uniform3f(U.uOff, P.offset[0], P.offset[1], P.offset[2]);
+          gl.uniform1f(U.uType, P.type);
+          gl.uniform1f(U.uFractal, P.fractal);
+          gl.uniform1f(U.uOct, P.octaves);
+          gl.uniform1f(U.uLac, P.lacunarity);
+          gl.uniform1f(U.uGain, P.gain);
+          gl.uniform1f(U.uJitter, P.jitter);
+          gl.uniform1f(U.uScale, P.scale);
+          gl.uniform1f(U.uAngle, (P.rotation * Math.PI) / 180);
+          gl.uniform1f(U.uSx, P.stretchX);
+          gl.uniform1f(U.uSy, P.stretchY);
+          gl.uniform1f(U.uSeed, P.seed);
+          gl.uniform1f(U.uWarp, P.warp);
+          gl.uniform1f(U.uContrast, P.contrast);
+          gl.uniform1f(U.uBright, P.brightness);
+          gl.uniform1f(U.uInvert, P.invert ? 1 : 0);
+          gl.uniform1f(
+            U.uPix,
+            P.pixel * P.resolution * (window.devicePixelRatio || 1),
+          );
+          gl.uniform1f(U.uN, P.colourCount);
+          gl.uniform1f(U.uSharp, P.sharpness);
+          const flat = [];
+          P.colors.forEach((c) => flat.push(...hex2rgb(c)));
+          gl.uniform3fv(U.uCols, new Float32Array(flat));
+          gl.drawArrays(gl.TRIANGLES, 0, 3);
+        }
+        /* Match the panel to the selected palette. */
+        const rootStyle = document.documentElement.style;
+        const lum = (c) => {
+          const f = (v) => {
+            v /= 255;
+            return v <= 0.03928
+              ? v / 12.92
+              : Math.pow((v + 0.055) / 1.055, 2.4);
+          };
+          return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+        };
+        let themeKey = "";
+        function updateTheme() {
+          const cols = P.colors
+            .slice(0, P.colourCount)
+            .map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)));
+          const key = cols.join("|");
+          if (key === themeKey) return;
+          themeKey = key;
+          const avg = [0, 1, 2].map(
+            (i) => cols.reduce((s, c) => s + c[i], 0) / cols.length,
+          );
+          const dark = lum(avg) < 0.36; // dark or light glass
+          const base = dark ? 0 : 255;
+          const tint = avg.map((v) => Math.round(v * 0.6 + base * 0.4)); // palette average, pushed toward black/white
+          const fg = dark ? [255, 255, 255] : [16, 18, 26];
+          const L = lum(tint);
+          // accent = palette colour that stands out most from the glass
+          let best = fg,
+            bs = -1,
+            bestRatio = 0;
+          cols.forEach((c) => {
+            const l = lum(c),
+              ratio = (Math.max(L, l) + 0.05) / (Math.min(L, l) + 0.05);
+            const mx = Math.max(...c),
+              mn = Math.min(...c),
+              sat = mx ? (mx - mn) / mx : 0;
+            const s = Math.min(ratio, 7) * (0.5 + sat);
+            if (s > bs) {
+              bs = s;
+              best = c;
+              bestRatio = ratio;
+            }
+          });
+          if (bestRatio < 2.2) best = fg;
+          const opt = tint.map((v) => Math.round(v * 0.7 + base * 0.3));
+          rootStyle.setProperty("--glass", `rgba(${tint.join(",")},.42)`);
+          rootStyle.setProperty("--fg", `rgb(${fg.join(",")})`);
+          rootStyle.setProperty("--fgdim", `rgba(${fg.join(",")},.7)`);
+          rootStyle.setProperty("--line", `rgba(${fg.join(",")},.22)`);
+          rootStyle.setProperty("--field", `rgba(${fg.join(",")},.11)`);
+          rootStyle.setProperty("--accent", `rgb(${best.join(",")})`);
+          rootStyle.setProperty(
+            "--accent-fg",
+            lum(best) > 0.4 ? "#101218" : "#ffffff",
+          );
+          rootStyle.setProperty("--opt", `rgb(${opt.join(",")})`);
+          rootStyle.colorScheme = dark ? "dark" : "light";
+        }
+        /* UI helpers */
+        function el(tag, attrs = {}, ...kids) {
+          const e = document.createElement(tag);
+          for (const [k, v] of Object.entries(attrs)) {
+            if (k === "class") e.className = v;
+            else if (k === "html") e.innerHTML = v;
+            else e.setAttribute(k, v);
+          }
+          kids.forEach((k) => e.append(k));
+          return e;
+        }
+        const toast = (m) => {
+          const t = document.getElementById("toast");
+          t.textContent = m;
+          t.classList.add("show");
+          clearTimeout(toast._t);
+          toast._t = setTimeout(() => t.classList.remove("show"), 1600);
+        };
+        const download = (blob, name) => {
+          const a = el("a", {
+            href: URL.createObjectURL(blob),
+            download: name,
+          });
+          document.body.append(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+        };
+        function hsl2hex(h, s, l) {
+          s /= 100;
+          l /= 100;
+          const a = s * Math.min(l, 1 - l);
+          const f = (n) => {
+            const k = (n + h / 30) % 12;
+            const c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+            return Math.round(255 * c)
+              .toString(16)
+              .padStart(2, "0");
+          };
+          return "#" + f(0) + f(8) + f(4);
+        }
+        const syncers = [];
+        function control(it) {
+          if (it.t === "select") {
+            const s = el("select");
+            it.opts.forEach((o, i) => s.append(el("option", { value: i }, o)));
+            s.onchange = () => {
+              P[it.k] = +s.value;
+            };
+            syncers.push(() => (s.value = P[it.k]));
+            return el(
+              "div",
+              { class: "row sel" },
+              el("label", {}, it.label),
+              s,
+            );
+          }
+          if (it.t === "check") {
+            const c = el("input", { type: "checkbox" });
+            c.onchange = () => {
+              P[it.k] = c.checked;
+            };
+            syncers.push(() => (c.checked = P[it.k]));
+            return el(
+              "div",
+              { class: "row chk" },
+              el("label", {}, it.label),
+              c,
+            );
+          }
+          const r = el("input", {
+            type: "range",
+            min: it.min,
+            max: it.max,
+            step: it.step,
+          });
+          const n = el("input", {
+            type: "number",
+            min: it.min,
+            max: it.max,
+            step: it.step,
+          });
+          r.oninput = () => {
+            P[it.k] = +r.value;
+            n.value = r.value;
+          };
+          n.onchange = () => {
+            let v = +n.value;
+            if (!Number.isFinite(v)) v = P[it.k];
+            P[it.k] = v;
+            r.value = v;
+          };
+          syncers.push(() => {
+            r.value = P[it.k];
+            n.value = P[it.k];
+          });
+          return el("div", { class: "row" }, el("label", {}, it.label), r, n);
+        }
+        const grid = (items) =>
+          el("div", { class: "grid" }, ...items.map(control));
+        const makeSvgIcon = (name) => {
+          const svg = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "svg",
+          );
+          svg.setAttribute("viewBox", "0 0 24 24");
+          svg.setAttribute("aria-hidden", "true");
+          svg.setAttribute("class", "btn-icon");
+          const icons = {
+            dice: `
+<g>
+<rect x="5" y="5" width="14" height="14" rx="3"></rect>
+<circle cx="9" cy="9" r="1.2"></circle>
+<circle cx="15" cy="9" r="1.2"></circle>
+<circle cx="9" cy="15" r="1.2"></circle>
+<circle cx="15" cy="15" r="1.2"></circle>
+</g>
+`,
+            swap: `
+<g>
+<path d="M4 8h15"></path>
+<path d="m16 5 3 3-3 3"></path>
+<path d="M20 16H5"></path>
+<path d="m8 13-3 3 3 3"></path>
+</g>
+`,
+            reset: `
+<g>
+<path d="M4 12a8 8 0 1 0 2-5.2"></path>
+<path d="M4 4v5h5"></path>
+</g>
+`,
+            stop: `
+<g>
+<rect class="solid" x="5" y="5" width="14" height="14" rx="2"></rect>
+</g>
+`,
+            copy: `
+<g>
+<rect x="9" y="9" width="10" height="10" rx="2"></rect>
+<path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path>
+</g>
+`,
+            eye: `
+<g>
+<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path>
+<circle cx="12" cy="12" r="2.8"></circle>
+</g>
+`,
+            download: `
+<g>
+<path d="M12 3v11"></path>
+<path d="m8 10 4 4 4-4"></path>
+<path d="M5 17v2h14v-2"></path>
+</g>
+`,
+            json: `
+<g>
+<path d="M8 5.5A2.5 2.5 0 0 0 5.5 8v1.5A2.5 2.5 0 0 1 3 12a2.5 2.5 0 0 1 2.5 2.5V16A2.5 2.5 0 0 0 8 18.5"></path>
+<path d="M16 5.5A2.5 2.5 0 0 1 18.5 8v1.5A2.5 2.5 0 0 0 21 12a2.5 2.5 0 0 0-2.5 2.5V16A2.5 2.5 0 0 1 16 18.5"></path>
+<path d="M14 4.5h-4v15h4"></path>
+</g>
+`,
+            folder: `
+<g>
+<path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h3l1.5 2H18.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"></path>
+</g>
+`,
+            image: `
+<g>
+<rect x="3.5" y="4.5" width="17" height="15" rx="2"></rect>
+<circle cx="9" cy="9" r="1.5"></circle>
+<path d="m5 17 5-5 3 3 2-2 4 4"></path>
+</g>
+`,
+          };
+          svg.innerHTML = icons[name] || icons.copy;
+          return svg;
+        };
+        const btn = (label, fn, cls = "", iconName = null) => {
+          const b = el("button", { class: "b " + cls });
+          if (iconName) {
+            const icon = makeSvgIcon(iconName);
+            const text = el("span", {}, label);
+            b.append(icon, text);
+          } else {
+            b.textContent = label;
+          }
+          b.onclick = fn;
+          return b;
+        };
+        const isTextInputActive = () => {
+          const active = document.activeElement;
+          return (
+            !!active &&
+            /INPUT|TEXTAREA|SELECT/.test(active.tagName) &&
+            !["range", "checkbox"].includes(active.type)
+          );
+        };
+        const randomInt = (min, max) =>
+          min + Math.floor(Math.random() * (max - min + 1));
+        const makeRandomPalette = () => {
+          const h0 = Math.random() * 360,
+            sp = 30 + Math.random() * 120;
+          const palette = [];
+          for (let i = 0; i < 8; i++) {
+            const h =
+              (h0 + (i * sp) / 7 + (Math.random() * 20 - 10) + 360) % 360;
+            const s = 45 + Math.random() * 45;
+            const l = 10 + i * 11 + (Math.random() * 8 - 4);
+            palette.push(hsl2hex(h, s, Math.min(95, l)));
+          }
+          return palette;
+        };
+        const reversePalette = () => {
+          const values = P.colors.slice(0, P.colourCount).reverse();
+          values.forEach((c, i) => (P.colors[i] = c));
+        };
+        const TABS = [];
+        function addTab(name, build) {
+          TABS.push({ name, build });
+        }
+        /* Noise tab */
+        addTab("Noise", () => [
+          grid([
+            { k: "type", label: "Type", t: "select", opts: TYPES },
+            { k: "fractal", label: "Layering", t: "select", opts: FRACTAL },
+            {
+              k: "scale",
+              label: "Scale",
+              t: "range",
+              min: 0.2,
+              max: 60,
+              step: 0.1,
+            },
+            {
+              k: "octaves",
+              label: "Octaves",
+              t: "range",
+              min: 1,
+              max: 8,
+              step: 1,
+            },
+            {
+              k: "lacunarity",
+              label: "Lacunarity",
+              t: "range",
+              min: 1,
+              max: 4,
+              step: 0.01,
+            },
+            {
+              k: "gain",
+              label: "Gain",
+              t: "range",
+              min: 0,
+              max: 1,
+              step: 0.01,
+            },
+            {
+              k: "jitter",
+              label: "Cell jitter",
+              t: "range",
+              min: 0,
+              max: 1,
+              step: 0.01,
+            },
+            {
+              k: "warp",
+              label: "Domain warp",
+              t: "range",
+              min: 0,
+              max: 3,
+              step: 0.01,
+            },
+            { k: "seed", label: "Seed", t: "range", min: 0, max: 999, step: 1 },
+          ]),
+          btn(
+            "Random seed",
+            () => {
+              P.seed = randomInt(0, 999);
+              refreshUI();
+            },
+            "",
+            "dice",
+          ),
+        ]);
+        /* Appearance tab */
+        addTab("Appearance", () => [
+          el("h3", {}, "Shape"),
+          grid([
+            {
+              k: "stretchX",
+              label: "Stretch X",
+              t: "range",
+              min: 0.1,
+              max: 5,
+              step: 0.01,
+            },
+            {
+              k: "stretchY",
+              label: "Stretch Y",
+              t: "range",
+              min: 0.1,
+              max: 5,
+              step: 0.01,
+            },
+            {
+              k: "rotation",
+              label: "Rotation °",
+              t: "range",
+              min: -180,
+              max: 180,
+              step: 1,
+            },
+          ]),
+          el("h3", {}, "Tone"),
+          grid([
+            {
+              k: "contrast",
+              label: "Contrast",
+              t: "range",
+              min: 0.1,
+              max: 8,
+              step: 0.01,
+            },
+            {
+              k: "brightness",
+              label: "Brightness",
+              t: "range",
+              min: -0.6,
+              max: 0.6,
+              step: 0.01,
+            },
+            { k: "invert", label: "Invert", t: "check" },
+          ]),
+          el("h3", {}, "Quality"),
+          grid([
+            {
+              k: "pixel",
+              label: "Pixel size",
+              t: "range",
+              min: 1,
+              max: 64,
+              step: 1,
+            },
+            {
+              k: "resolution",
+              label: "Render scale",
+              t: "range",
+              min: 0.1,
+              max: 2,
+              step: 0.05,
+            },
+          ]),
+        ]);
+        /* Colour tab */
+        let colourInputs = [];
+        const updateColourVisibility = () =>
+          colourInputs.forEach((ci, i) =>
+            ci.classList.toggle("off", i >= P.colourCount),
+          );
+        addTab("Colour", () => {
+          const cols = el("div", { class: "cols" });
+          colourInputs = P.colors.map((c, i) => {
+            const inp = el("input", { type: "color", value: c });
+            inp.oninput = () => {
+              P.colors[i] = inp.value;
+            };
+            cols.append(inp);
+            return inp;
+          });
+          syncers.push(() =>
+            colourInputs.forEach((ci, i) => (ci.value = P.colors[i])),
+          );
+          const chips = el("div", { class: "chips" });
+          PALETTES.forEach((arr) => {
+            const c = el("button", {
+              class: "chip",
+              title: "Use this palette",
+              style: `background:linear-gradient(90deg,${arr.map((x, i) => `${x} ${(i / arr.length) * 100}%,${x} ${((i + 1) / arr.length) * 100}%`).join(",")})`,
+            });
+            c.onclick = () => {
+              arr.forEach((x, i) => (P.colors[i] = x));
+              P.colourCount = arr.length;
+              refreshUI();
+            };
+            chips.append(c);
+          });
+          return [
+            grid([
+              {
+                k: "colourCount",
+                label: "Colour count",
+                t: "range",
+                min: 2,
+                max: 8,
+                step: 1,
+              },
+              {
+                k: "sharpness",
+                label: "Edge sharpness",
+                t: "range",
+                min: 0,
+                max: 1,
+                step: 0.01,
+              },
+            ]),
+            el("h3", {}, "Colours (low → high)"),
+            cols,
+            el(
+              "div",
+              { class: "btns" },
+              btn(
+                "Random palette",
+                () => {
+                  P.colors.splice(0, 8, ...makeRandomPalette());
+                  refreshUI();
+                },
+                "",
+                "dice",
+              ),
+              btn(
+                "Reverse",
+                () => {
+                  reversePalette();
+                  refreshUI();
+                },
+                "",
+                "swap",
+              ),
+            ),
+            el("h3", {}, "Quick palettes"),
+            chips,
+            el(
+              "p",
+              { class: "note" },
+              "*Sharpness controls the transition between colours. 0 = smooth gradient, 1 = hard bands.",
+            ),
+          ];
+        });
+        /* Motion tab */
+        addTab("Motion", () => [
+          grid([
+            {
+              k: "speed",
+              label: "Master speed",
+              t: "range",
+              min: 0,
+              max: 6,
+              step: 0.01,
+            },
+            {
+              k: "speedX",
+              label: "Direction X",
+              t: "range",
+              min: -3,
+              max: 3,
+              step: 0.01,
+            },
+            {
+              k: "speedY",
+              label: "Direction Y",
+              t: "range",
+              min: -3,
+              max: 3,
+              step: 0.01,
+            },
+            {
+              k: "speedZ",
+              label: "Direction Z",
+              t: "range",
+              min: -3,
+              max: 3,
+              step: 0.01,
+            },
+          ]),
+          el(
+            "div",
+            { class: "btns" },
+            btn(
+              "Reset position",
+              () => {
+                P.offset = [0, 0, 0];
+              },
+              "",
+              "reset",
+            ),
+            btn(
+              "Stop all",
+              () => {
+                P.speedX = P.speedY = P.speedZ = 0;
+                refreshUI();
+              },
+              "",
+              "stop",
+            ),
+          ),
+          el(
+            "p",
+            { class: "note" },
+            "X and Y move the pattern. Z morphs it over time. Master speed scales all three.",
+          ),
+        ]);
+        /* Export tab */
+        addTab("Export", () => {
+          const obsBox = el("textarea", {
+            readonly: "",
+            style: "height:58px",
+            placeholder: "Press “Copy link” to build the link…",
+          });
+          const ta = el("textarea", {
+            placeholder: "Paste exported JSON here to load it…",
+            spellcheck: "false",
+          });
+          const chk = el("input", { type: "checkbox" });
+          chk.checked = includeGLSL;
+          chk.onchange = () => (includeGLSL = chk.checked);
+          const fi = el("input", {
+            type: "file",
+            accept: ".json,application/json",
+            style: "display:none",
+          });
+          const mk = () => {
+            const n = P.colourCount;
+            const out = {
+              format: "noise-lab",
+              version: 1,
+              readme:
+                "Noise Lab settings. The params object contains the full configuration, palette lists the active colours, and glsl contains the shader source when included.",
+              types: TYPES,
+              layering: FRACTAL,
+              params: JSON.parse(JSON.stringify(P)),
+              palette: P.colors.slice(0, n),
+            };
+            if (includeGLSL) out.glsl = fragSrc.trim();
+            return out;
+          };
+          const doLoad = (txt) => {
+            try {
+              const j = JSON.parse(txt);
+              merge(P, j.params || j);
+              refreshUI();
+              toast("Settings loaded");
+            } catch (e) {
+              toast("Could not load settings. Check the JSON and try again.");
+            }
+          };
+          fi.onchange = async () => {
+            if (fi.files[0]) doLoad(await fi.files[0].text());
+            fi.value = "";
+          };
+          return [
+            el("h3", {}, "Share link"),
+            el(
+              "div",
+              { class: "btns" },
+              btn(
+                "Copy link",
+                async () => {
+                  const u = obsUrl(P);
+                  obsBox.value = u;
+                  try {
+                    await navigator.clipboard.writeText(u);
+                    toast("Link copied");
+                  } catch (e) {
+                    obsBox.select();
+                    toast("Select & copy the link");
+                  }
+                },
+                "pri",
+                "copy",
+              ),
+              btn(
+                "Preview without controls",
+                () => window.open(obsUrl(P), "_blank"),
+                "",
+                "eye",
+              ),
+            ),
+            obsBox,
+            el("p", {
+              class: "note",
+              html: "Copy the link to share this setup, or open it in a browser to view the noise without the controls.",
+            }),
+            el("h3", {}, "Settings file"),
+            el(
+              "div",
+              { class: "btns" },
+              btn(
+                "Download JSON",
+                () => {
+                  download(
+                    new Blob([JSON.stringify(mk(), null, 2)], {
+                      type: "application/json",
+                    }),
+                    "noise-settings.json",
+                  );
+                  toast("Downloaded noise-settings.json");
+                },
+                "pri",
+                "download",
+              ),
+              btn(
+                "Copy JSON",
+                async () => {
+                  const txt = JSON.stringify(mk(), null, 2);
+                  try {
+                    await navigator.clipboard.writeText(txt);
+                    toast("Copied to clipboard");
+                  } catch (e) {
+                    ta.value = txt;
+                    ta.select();
+                    toast("Select & copy from the box");
+                  }
+                },
+                "",
+                "copy",
+              ),
+              btn("Load file", () => fi.click(), "", "folder"),
+              btn(
+                "Save PNG",
+                () => {
+                  draw();
+                  cv.toBlob((bl) => download(bl, "noise.png"));
+                },
+                "",
+                "image",
+              ),
+              fi,
+            ),
+            el(
+              "label",
+              {
+                style:
+                  "display:flex;gap:8px;align-items:center;color:var(--fgdim);margin:4px 0 8px",
+              },
+              chk,
+              "Include shader source in the JSON",
+            ),
+            ta,
+            el(
+              "div",
+              { class: "btns" },
+              btn("Load settings", () => doLoad(ta.value)),
+              btn("Reset settings", () => {
+                P = JSON.parse(JSON.stringify(DEFAULTS));
+                refreshUI();
+              }),
+            ),
+          ];
+        });
+        /* Build tabs */
+        const tabsEl = document.getElementById("tabs"),
+          contentEl = document.getElementById("content");
+        const tabBtns = [],
+          pages = [];
+        function selectTab(i) {
+          tabBtns.forEach((b, j) => b.classList.toggle("active", i === j));
+          pages.forEach((p, j) => p.classList.toggle("active", i === j));
+          contentEl.scrollTop = 0;
+          try {
+            sessionStorage.setItem("noise-lab-tab", i);
+          } catch (e) {}
+        }
+        TABS.forEach((t, i) => {
+          const b = el("button", { class: "tab" }, t.name);
+          b.onclick = () => selectTab(i);
+          const page = el("div", { class: "page" });
+          t.build().forEach((n) => page.append(n));
+          tabsEl.append(b);
+          contentEl.append(page);
+          tabBtns.push(b);
+          pages.push(page);
+        });
+        let startTab = 0;
+        try {
+          startTab = Math.min(
+            TABS.length - 1,
+            +sessionStorage.getItem("noise-lab-tab") || 0,
+          );
+        } catch (e) {}
+        selectTab(startTab);
+        function refreshUI() {
+          syncers.forEach((f) => f());
+          updateColourVisibility();
+          updateTheme();
+          save();
+        }
+        /* Panel visibility and playback */
+        const setHidden = (h) => document.body.classList.toggle("hidepanel", h);
+        const toggleHidden = () =>
+          setHidden(!document.body.classList.contains("hidepanel"));
+        document.getElementById("hideB").onclick = () => setHidden(true);
+        document.getElementById("peek").onclick = () => setHidden(false);
+        addEventListener("keydown", (e) => {
+          if (CLEAN || isTextInputActive()) return;
+          if (e.code === "Space") {
+            e.preventDefault();
+            paused = !paused;
+          } else if (e.key === "h" || e.key === "H") {
+            toggleHidden();
+          }
+        });
+        cv.addEventListener("dblclick", () => {
+          if (CLEAN) return;
+          if (document.fullscreenElement) document.exitFullscreen();
+          else document.documentElement.requestFullscreen?.();
+        });
+        addEventListener("hashchange", () => {
+          const s = urlArgs().get("s");
+          if (s) {
+            try {
+              merge(P, dec(s));
+              refreshUI();
+            } catch (e) {}
+          }
+        });
+        addEventListener("beforeunload", save);
+        /* Animation loop */
+        const stat = document.getElementById("stat");
+        let last = performance.now(),
+          saveT = 0,
+          uiT = 0;
+        function frame(now) {
+          const dt = Math.min(0.1, (now - last) / 1000);
+          last = now;
+          if (!paused) {
+            P.offset[0] += P.speedX * P.speed * dt;
+            P.offset[1] += P.speedY * P.speed * dt;
+            P.offset[2] += P.speedZ * P.speed * dt;
+          }
+          draw();
+          uiT += dt;
+          if (uiT > 0.12) {
+            uiT = 0;
+            updateTheme();
+            if (!CLEAN)
+              stat.textContent = `${cv.width}×${cv.height} · position ${P.offset.map((v) => v.toFixed(2)).join(", ")}${paused ? " · paused" : ""}`;
+          }
+          saveT += dt;
+          if (saveT > 2) {
+            saveT = 0;
+            save();
+          }
+          requestAnimationFrame(frame);
+        }
+        refreshUI();
+        requestAnimationFrame(frame);
+      })();
+    </script>
+  </body>
+</html>
